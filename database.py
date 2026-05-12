@@ -35,3 +35,16 @@ else:
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
+
+def get_db():
+    """
+    FastAPI dependency.
+    Opens database session and closes it after request.
+    main.py imports this function.
+    """
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
