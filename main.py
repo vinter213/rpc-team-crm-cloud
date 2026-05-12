@@ -5,7 +5,7 @@ from typing import Optional
 
 from fastapi import FastAPI, Depends, HTTPException, status, Header
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from pydantic import BaseModel
@@ -96,7 +96,7 @@ app.add_middleware(
 )
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 
 class RegisterIn(BaseModel):
     name: str
@@ -356,6 +356,25 @@ def register(data: RegisterIn, db: Session = Depends(get_db)):
     db.refresh(user)
     token = create_token({"sub": str(user.id), "role": user.role})
     return {"access_token": token, "user": user_dict(user)}
+
+
+@app.post("/auth/token")
+def login_for_swagger_docs(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    """
+    Swagger /docs Authorize fix.
+    This endpoint accepts OAuth2 form data from the green Authorize button.
+    Normal JSON login still works at POST /auth/login.
+    """
+    user = db.query(User).filter(User.username == form_data.username).first()
+    if not user or not verify_password(form_data.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Wrong login or password")
+    if hasattr(user, "is_active") and user.is_active is False:
+        raise HTTPException(status_code=403, detail="User is disabled")
+    return {
+        "access_token": create_token({"sub": user.username}),
+        "token_type": "bearer"
+    }
+
 
 @app.post("/auth/login", response_model=TokenOut)
 def login(data: LoginIn, db: Session = Depends(get_db)):
