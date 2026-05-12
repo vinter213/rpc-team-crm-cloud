@@ -285,42 +285,6 @@ def set_user_role(user_id: int, data: UserRoleIn, user: User = Depends(get_curre
     db.refresh(target)
     return user_dict(target)
 
-
-@app.post("/public/orders")
-def public_create_order(data: OrderIn, db: Session = Depends(get_db)):
-    """Public website order form. No login required."""
-    order = Order(
-        client_name=data.client_name.strip(),
-        contact=data.contact.strip(),
-        service=data.service.strip(),
-        price=data.price,
-        prepaid=0,
-        status="new",
-        worker_id=None,
-        deadline=data.deadline,
-        notes=data.notes,
-    )
-    db.add(order)
-    db.commit()
-    db.refresh(order)
-    return order_dict(order)
-
-
-@app.get("/public/orders/{order_id}")
-def public_get_order_status(order_id: int, db: Session = Depends(get_db)):
-    """Public status check for website clients."""
-    order = db.query(Order).filter(Order.id == order_id).first()
-    if not order:
-        raise HTTPException(status_code=404, detail="Заявка не найдена")
-    return {
-        "id": order.id,
-        "client_name": order.client_name,
-        "service": order.service,
-        "status": order.status,
-        "deadline": order.deadline,
-        "created_at": order.created_at.isoformat() if order.created_at else "",
-    }
-
 @app.post("/tasks")
 def create_task(data: TaskIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     require_owner_or_manager(user)
