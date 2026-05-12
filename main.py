@@ -257,9 +257,13 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
         user_id = payload.get("sub")
         if user_id is None:
             raise HTTPException(status_code=401, detail="Invalid token")
+        try:
+            user_id_int = int(user_id)
+        except Exception:
+            raise HTTPException(status_code=401, detail="Invalid token. Please login again.")
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
-    user = db.query(User).filter(User.id == int(user_id)).first()
+    user = db.query(User).filter(User.id == user_id_int).first()
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
     if not bool(getattr(user, "is_active", True)):
@@ -371,7 +375,7 @@ def login_for_swagger_docs(form_data: OAuth2PasswordRequestForm = Depends(), db:
     if hasattr(user, "is_active") and user.is_active is False:
         raise HTTPException(status_code=403, detail="User is disabled")
     return {
-        "access_token": create_token({"sub": user.username}),
+        "access_token": create_token({"sub": str(user.id), "role": user.role}),
         "token_type": "bearer"
     }
 
