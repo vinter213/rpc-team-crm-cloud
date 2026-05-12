@@ -539,6 +539,23 @@ def admin_site_summary(user: User = Depends(get_current_user), db: Session = Dep
     }
 
 
+
+@app.get("/admin/database/status")
+def admin_database_status(user: User = Depends(get_current_user)):
+    require_owner(user)
+    url = os.getenv("DATABASE_URL", "").strip()
+    if url:
+        safe = url
+        if "@" in safe:
+            safe = safe.split("@", 1)[1]
+            safe = "postgresql://***:***@" + safe
+        return {"mode": "postgresql", "persistent": True, "database": safe}
+    return {
+        "mode": "sqlite",
+        "persistent": False,
+        "warning": "DATABASE_URL is not configured. Accounts can disappear after Render restart/redeploy."
+    }
+
 @app.post("/admin/telegram/test")
 def admin_telegram_test(user: User = Depends(get_current_user)):
     require_owner(user)

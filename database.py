@@ -1,30 +1,37 @@
 import os
-from pathlib import Path
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-BASE_DIR = Path(__file__).resolve().parent
+# ============================================================
+# RPC Team CRM database
+# ============================================================
+# If DATABASE_URL exists in Render Environment, server uses
+# permanent PostgreSQL database, for example Supabase.
+#
+# If DATABASE_URL is empty, server falls back to local SQLite.
+# Local SQLite on Render can be reset after redeploy/restart,
+# so for production use DATABASE_URL.
+# ============================================================
 
-# For Koyeb Free test version SQLite is used by default.
-# For later PostgreSQL, set DATABASE_URL in Koyeb environment variables.
 DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
-if DATABASE_URL:
-    SQLALCHEMY_DATABASE_URL = DATABASE_URL
-    connect_args = {}
-else:
-    DATA_DIR = Path(os.getenv("DATA_DIR", str(BASE_DIR))).resolve()
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    DB_PATH = DATA_DIR / "rpc_team_crm.db"
-    SQLALCHEMY_DATABASE_URL = f"sqlite:///{DB_PATH}"
-    connect_args = {"check_same_thread": False}
 
-engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args=connect_args)
+if DATABASE_URL:
+    # Render/Supabase sometimes provides postgres://,
+    # SQLAlchemy wants postgresql://
+    if DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+    engine = create_engine(
+        DATABASE_URL,
+        pool_pre_ping=True,
+        pool_recycle=300,
+    )
+else:
+    SQLITE_PATH = os.getenv("SQLITE_PATH", "rpc_team_crm.db")
+    engine = create_engine(
+        f"sqlite:///{SQLITE_PATH}",
+        connect_args={"check_same_thread": False},
+    )
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
