@@ -1,3 +1,4 @@
+import requests
 from datetime import datetime, timedelta
 import os
 from typing import Optional
@@ -18,6 +19,48 @@ APP_NAME = "RPC Team CRM Server"
 SECRET_KEY = os.getenv("SECRET_KEY", "CHANGE_THIS_SECRET_KEY_IN_PRODUCTION_RPC_2026")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_DAYS = 30
+
+
+def send_telegram_notification(text_msg: str):
+    token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
+    chat_id = os.getenv("TELEGRAM_CHAT_ID", "").strip()
+    if not token or not chat_id:
+        return False
+    try:
+        url = f"https://api.telegram.org/bot{token}/sendMessage"
+        payload = {
+            "chat_id": chat_id,
+            "text": text_msg,
+            "parse_mode": "HTML",
+            "disable_web_page_preview": True,
+        }
+        requests.post(url, json=payload, timeout=8)
+        return True
+    except Exception as e:
+        print("Telegram notification error:", e)
+        return False
+
+
+def order_telegram_text(order):
+    price = getattr(order, "price", 0) or 0
+    deadline = getattr(order, "deadline", "") or "не указан"
+    notes = getattr(order, "notes", "") or ""
+    if len(notes) > 900:
+        notes = notes[:900] + "..."
+
+    return (
+        "🔥 <b>Новый заказ RPC</b>\n\n"
+        f"🆔 <b>Заявка:</b> RPC-{str(order.id).zfill(5)}\n"
+        f"👤 <b>Клиент:</b> {order.client_name}\n"
+        f"📞 <b>Контакт:</b> {order.contact}\n"
+        f"🛠 <b>Услуга:</b> {order.service}\n"
+        f"💰 <b>Бюджет:</b> {price}\n"
+        f"⏰ <b>Дедлайн:</b> {deadline}\n"
+        f"📌 <b>Статус:</b> {order.status}\n\n"
+        f"📝 <b>Описание:</b>\n{notes}\n\n"
+        "Открой RPC Team CRM, чтобы назначить работника."
+    )
+
 
 Base.metadata.create_all(bind=engine)
 
@@ -404,6 +447,12 @@ def public_create_order(data: OrderIn, db: Session = Depends(get_db), authorizat
     db.add(order)
     db.commit()
     db.refresh(order)
+
+    try:
+        send_telegram_notification(order_telegram_text(order))
+    except Exception as e:
+        print("Telegram notification failed:", e)
+
     return order_dict(order)
 
 
@@ -488,6 +537,15 @@ def admin_site_summary(user: User = Depends(get_current_user), db: Session = Dep
         "orders_in_work": db.query(Order).filter(Order.status == "in_work").count(),
         "last_orders": [order_dict(o) for o in orders],
     }
+
+
+@app.post("/admin/telegram/test")
+def admin_telegram_test(user: User = Depends(get_current_user)):
+    require_owner(user)
+    ok = send_telegram_notification("✅ <b>RPC Telegram уведомления работают</b>\n\nТеперь новые заявки будут приходить на телефон.")
+    if not ok:
+        raise HTTPException(status_code=400, detail="Telegram variables are not configured")
+    return {"ok": True, "message": "Telegram test notification sent"}
 
 @app.post("/tasks")
 def create_task(data: TaskIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
