@@ -1,18 +1,11 @@
-SERVER UPDATE: PUBLIC ORDER STATUS
-=================================
+SERVER UPDATE CLIENT PORTAL + ADMIN
 
-Добавляет endpoint для проверки статуса заявки:
+Добавляет:
+POST /client/register
+POST /client/login
+GET /client/me
+GET /client/orders
+GET /public/queue
+GET /admin/site/summary
 
-GET /public/orders/{order_id}
-
-Пример:
-https://rpc-team-crm.onrender.com/public/orders/24
-
-Как обновить:
-1. Загрузи файлы из этой папки в GitHub репозиторий сервера.
-2. Render -> Manual Deploy -> Deploy latest commit.
-3. Проверь:
-   https://rpc-team-crm.onrender.com/docs
-4. В docs должны быть:
-   POST /public/orders
-   GET /public/orders/{order_id}
+Сначала залей эти файлы в GitHub репозиторий сервера и сделай Render deploy.

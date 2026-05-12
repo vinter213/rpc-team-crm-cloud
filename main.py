@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 import os
 from typing import Optional
 
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import inspect, text
 
 from database import Base, engine, get_db
-from models import User, Order, Task
+from models import User, Order, Task, ClientAccount
 
 APP_NAME = "RPC Team CRM Server"
 SECRET_KEY = os.getenv("SECRET_KEY", "CHANGE_THIS_SECRET_KEY_IN_PRODUCTION_RPC_2026")
@@ -33,6 +33,11 @@ def ensure_schema():
                     conn.execute(text("UPDATE users SET approved = 1 WHERE role = 'owner'"))
                 if "is_active" not in columns:
                     conn.execute(text("ALTER TABLE users ADD COLUMN is_active BOOLEAN DEFAULT 1"))
+        if "orders" in inspector.get_table_names():
+            order_columns = {c["name"] for c in inspector.get_columns("orders")}
+            with engine.begin() as conn:
+                if "client_account_id" not in order_columns:
+                    conn.execute(text("ALTER TABLE orders ADD COLUMN client_account_id INTEGER"))
     except Exception:
         pass
 
@@ -59,6 +64,20 @@ class RegisterIn(BaseModel):
 class LoginIn(BaseModel):
     username: str
     password: str
+
+class ClientRegisterIn(BaseModel):
+    name: str
+    email: str
+    password: str
+
+class ClientLoginIn(BaseModel):
+    email: str
+    password: str
+
+class ClientTokenOut(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    client: dict
 
 class TokenOut(BaseModel):
     access_token: str
@@ -151,6 +170,44 @@ def order_dict(o: Order):
         "created_at": o.created_at.isoformat() if o.created_at else "",
     }
 
+def client_dict(client: ClientAccount):
+    return {
+        "id": client.id,
+        "name": client.name,
+        "email": client.email,
+        "provider": client.provider,
+        "created_at": client.created_at.isoformat() if client.created_at else "",
+    }
+
+def create_client_token(client: ClientAccount) -> str:
+    return create_token({"sub": str(client.id), "type": "client"})
+
+async def get_current_client(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> ClientAccount:
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        if payload.get("type") != "client":
+            raise HTTPException(status_code=401, detail="Invalid client token")
+        client_id = payload.get("sub")
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid client token")
+    client = db.query(ClientAccount).filter(ClientAccount.id == int(client_id)).first()
+    if not client:
+        raise HTTPException(status_code=401, detail="Client not found")
+    return client
+
+def get_optional_client(token: Optional[str], db: Session):
+    if not token:
+        return None
+    try:
+        if token.lower().startswith("bearer "):
+            token = token.split(" ", 1)[1]
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        if payload.get("type") != "client":
+            return None
+        return db.query(ClientAccount).filter(ClientAccount.id == int(payload.get("sub"))).first()
+    except Exception:
+        return None
+
 async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -167,6 +224,44 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
     if user.role != "owner" and not bool(getattr(user, "approved", False)):
         raise HTTPException(status_code=403, detail="Account is waiting for owner approval")
     return user
+
+def client_dict(client: ClientAccount):
+    return {
+        "id": client.id,
+        "name": client.name,
+        "email": client.email,
+        "provider": client.provider,
+        "created_at": client.created_at.isoformat() if client.created_at else "",
+    }
+
+def create_client_token(client: ClientAccount) -> str:
+    return create_token({"sub": str(client.id), "type": "client"})
+
+async def get_current_client(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> ClientAccount:
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        if payload.get("type") != "client":
+            raise HTTPException(status_code=401, detail="Invalid client token")
+        client_id = payload.get("sub")
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid client token")
+    client = db.query(ClientAccount).filter(ClientAccount.id == int(client_id)).first()
+    if not client:
+        raise HTTPException(status_code=401, detail="Client not found")
+    return client
+
+def get_optional_client(token: Optional[str], db: Session):
+    if not token:
+        return None
+    try:
+        if token.lower().startswith("bearer "):
+            token = token.split(" ", 1)[1]
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        if payload.get("type") != "client":
+            return None
+        return db.query(ClientAccount).filter(ClientAccount.id == int(payload.get("sub"))).first()
+    except Exception:
+        return None
 
 async def get_current_user_unchecked(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
     try:
@@ -284,6 +379,115 @@ def set_user_role(user_id: int, data: UserRoleIn, user: User = Depends(get_curre
     db.commit()
     db.refresh(target)
     return user_dict(target)
+
+
+@app.post("/public/orders")
+def public_create_order(data: OrderIn, db: Session = Depends(get_db), authorization: Optional[str] = Header(None)):
+    """Public website order form. No login required. If client token is provided, binds order to client account."""
+    client = get_optional_client(authorization, db)
+    order = Order(
+        client_name=data.client_name.strip(),
+        contact=data.contact.strip(),
+        service=data.service.strip(),
+        price=data.price,
+        prepaid=0,
+        status="new",
+        worker_id=None,
+        deadline=data.deadline,
+        notes=data.notes,
+    )
+    if client:
+        try:
+            order.client_account_id = client.id
+        except Exception:
+            pass
+    db.add(order)
+    db.commit()
+    db.refresh(order)
+    return order_dict(order)
+
+
+@app.get("/public/orders/{order_id}")
+def public_get_order_status(order_id: int, db: Session = Depends(get_db)):
+    """Public status check for website clients."""
+    order = db.query(Order).filter(Order.id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Заявка не найдена")
+    return {
+        "id": order.id,
+        "client_name": order.client_name,
+        "service": order.service,
+        "status": order.status,
+        "deadline": order.deadline,
+        "created_at": order.created_at.isoformat() if order.created_at else "",
+    }
+
+
+@app.post("/client/register", response_model=ClientTokenOut)
+def client_register(data: ClientRegisterIn, db: Session = Depends(get_db)):
+    email = data.email.strip().lower()
+    if len(data.password) < 4:
+        raise HTTPException(status_code=400, detail="Password must be at least 4 symbols")
+    if db.query(ClientAccount).filter(ClientAccount.email == email).first():
+        raise HTTPException(status_code=400, detail="Email already registered")
+    client = ClientAccount(
+        name=data.name.strip() or email,
+        email=email,
+        password_hash=hash_password(data.password),
+        provider="email",
+    )
+    db.add(client)
+    db.commit()
+    db.refresh(client)
+    return {"access_token": create_client_token(client), "client": client_dict(client)}
+
+@app.post("/client/login", response_model=ClientTokenOut)
+def client_login(data: ClientLoginIn, db: Session = Depends(get_db)):
+    client = db.query(ClientAccount).filter(ClientAccount.email == data.email.strip().lower()).first()
+    if not client or not verify_password(data.password, client.password_hash):
+        raise HTTPException(status_code=401, detail="Wrong email or password")
+    return {"access_token": create_client_token(client), "client": client_dict(client)}
+
+@app.get("/client/me")
+def client_me(client: ClientAccount = Depends(get_current_client)):
+    return client_dict(client)
+
+@app.get("/client/orders")
+def client_orders(client: ClientAccount = Depends(get_current_client), db: Session = Depends(get_db)):
+    try:
+        orders = db.query(Order).filter(Order.client_account_id == client.id).order_by(Order.id.desc()).all()
+    except Exception:
+        orders = []
+    return [order_dict(o) for o in orders]
+
+@app.get("/public/queue")
+def public_queue(db: Session = Depends(get_db)):
+    orders = db.query(Order).all()
+    def count(statuses):
+        return len([o for o in orders if (o.status or "new") in statuses])
+    return {
+        "new": count(["new"]),
+        "discussion": count(["discussion", "Обсуждение"]),
+        "waiting_prepay": count(["waiting_prepay", "Ожидает предоплату"]),
+        "in_work": count(["in_work", "В работе"]),
+        "review": count(["review", "На проверке"]),
+        "done": count(["done", "Готово"]),
+        "paid": count(["paid", "Оплачено"]),
+        "total": len(orders),
+        "free_slots": max(0, 5 - count(["new", "discussion", "waiting_prepay", "in_work", "review"]))
+    }
+
+@app.get("/admin/site/summary")
+def admin_site_summary(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    require_owner(user)
+    orders = db.query(Order).order_by(Order.id.desc()).limit(50).all()
+    return {
+        "clients": db.query(ClientAccount).count(),
+        "orders_total": db.query(Order).count(),
+        "orders_new": db.query(Order).filter(Order.status == "new").count(),
+        "orders_in_work": db.query(Order).filter(Order.status == "in_work").count(),
+        "last_orders": [order_dict(o) for o in orders],
+    }
 
 @app.post("/tasks")
 def create_task(data: TaskIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):

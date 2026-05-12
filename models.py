@@ -46,3 +46,14 @@ class Task(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     assignee = relationship("User", back_populates="tasks")
+
+
+class ClientAccount(Base):
+    __tablename__ = "client_accounts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(120), nullable=False)
+    email = Column(String(180), unique=True, index=True, nullable=False)
+    password_hash = Column(String(255), nullable=False)
+    provider = Column(String(40), default="email")
+    created_at = Column(DateTime, default=datetime.utcnow)
