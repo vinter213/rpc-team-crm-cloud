@@ -96,7 +96,8 @@ app.add_middleware(
 )
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token", auto_error=False)
+NO_LOGIN_MODE = os.getenv("RPC_NO_LOGIN", "true").lower() in ["1", "true", "yes", "on"]
 
 class RegisterIn(BaseModel):
     name: str
@@ -172,6 +173,35 @@ def create_token(data: dict) -> str:
     expire = datetime.utcnow() + timedelta(days=ACCESS_TOKEN_EXPIRE_DAYS)
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
+
+def get_or_create_no_login_owner(db: Session) -> User:
+    """Creates/returns a local owner for CRM without login screen."""
+    user = db.query(User).filter(User.username == "rpc_owner_auto").first()
+    if not user:
+        user = User(
+            name="RPC Owner",
+            username="rpc_owner_auto",
+            password_hash=hash_password(os.getenv("RPC_AUTO_OWNER_PASSWORD", "rpc_auto_owner_2026")),
+            role="owner",
+            approved=True,
+            is_active=True,
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    else:
+        changed = False
+        if user.role != "owner":
+            user.role = "owner"; changed = True
+        if not bool(getattr(user, "approved", False)):
+            user.approved = True; changed = True
+        if not bool(getattr(user, "is_active", True)):
+            user.is_active = True; changed = True
+        if changed:
+            db.commit(); db.refresh(user)
+    return user
 
 def user_dict(user: User):
     return {
@@ -252,6 +282,8 @@ def get_optional_client(token: Optional[str], db: Session):
         return None
 
 async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
+    if NO_LOGIN_MODE and not token:
+        return get_or_create_no_login_owner(db)
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id = payload.get("sub")
@@ -311,6 +343,8 @@ def get_optional_client(token: Optional[str], db: Session):
         return None
 
 async def get_current_user_unchecked(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
+    if NO_LOGIN_MODE and not token:
+        return get_or_create_no_login_owner(db)
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id = payload.get("sub")
@@ -331,7 +365,7 @@ def require_owner_or_manager(user: User):
 
 @app.get("/")
 def root():
-    return {"app": APP_NAME, "status": "online", "version": "1.2.0", "docs": "/docs"}
+    return {"app": APP_NAME, "status": "online", "version": "1.2.0", "no_login": NO_LOGIN_MODE, "docs": "/docs"}
 
 @app.post("/auth/register", response_model=TokenOut)
 def register(data: RegisterIn, db: Session = Depends(get_db)):
