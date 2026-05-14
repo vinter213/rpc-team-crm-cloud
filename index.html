@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>RPC • RedPad Creator</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div class="bg-orb orb-a"></div>
+  <div class="bg-orb orb-b"></div>
+  <div class="noise"></div>
+
+  <header class="topbar">
+    <a class="brand" href="./index.html">
+      <div class="avatar-logo">
+        <span>RPC</span>
+      </div>
+      <div>
+        <b>RedPad Creator</b>
+        <small>VRChat • Unity • Avatar • World</small>
+      </div>
+    </a>
+
+    <nav class="nav">
+      <a href="#services">Услуги</a>
+      <a href="#order">Заказать</a>
+      <a href="./worker-register.html">Стать работником</a>
+      <a href="./worker-status.html">Статус</a>
+      <a class="owner-link" href="./owner-workers.html">Owner</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero section">
+      <div class="hero-copy">
+        <div class="badge">RPC ORDER WEBSITE</div>
+        <h1>Закажи VRChat аватар, мир или Unity-систему</h1>
+        <p>
+          Красивый сайт для заявок RPC: клиент оставляет заказ, ты получаешь его в CRM,
+          а рабочие могут вступать в команду через отдельную регистрацию.
+        </p>
+
+        <div class="hero-actions">
+          <a class="primary-btn" href="#order">Оставить заказ</a>
+          <a class="ghost-btn" href="./worker-register.html">Хочу в команду</a>
+        </div>
+
+        <div class="mini-grid">
+          <div><b>10%</b><span>скидка студентам</span></div>
+          <div><b>CRM</b><span>синхронизация заявок</span></div>
+          <div><b>RPC</b><span>неоновый стиль</span></div>
+        </div>
+      </div>
+
+      <div class="hero-card glass-card">
+        <div class="slime-face">☠</div>
+        <h2>RPC Team System</h2>
+        <p>Теперь на сайте есть регистрация рабочих с подтверждением от owner.</p>
+        <div class="status-line"><span></span> Server: rpc-team-crm.onrender.com</div>
+      </div>
+    </section>
+
+    <section class="section" id="services">
+      <div class="section-head">
+        <div class="badge">SERVICES</div>
+        <h2>Что можно заказать</h2>
+      </div>
+
+      <div class="cards">
+        <article class="glass-card service">
+          <h3>VRChat Avatar</h3>
+          <p>Загрузка, правки, оптимизация, Quest-версия, добавление ассетов.</p>
+          <b>от 100₽</b>
+        </article>
+
+        <article class="glass-card service">
+          <h3>VRChat World</h3>
+          <p>Мир, интерактив, UdonSharp, сцены, UI, эффекты, AudioLink.</p>
+          <b>по задаче</b>
+        </article>
+
+        <article class="glass-card service">
+          <h3>Unity / UdonSharp</h3>
+          <p>Скрипты, кнопки, двери, панели, синхронизация, системы доступа.</p>
+          <b>по задаче</b>
+        </article>
+
+        <article class="glass-card service">
+          <h3>CRM / Website</h3>
+          <p>Сайты, формы заказа, админ-панели, уведомления Telegram.</p>
+          <b>по задаче</b>
+        </article>
+      </div>
+    </section>
+
+    <section class="section split" id="order">
+      <div>
+        <div class="badge">ORDER</div>
+        <h2>Оставить заявку</h2>
+        <p class="muted">
+          Цена и дедлайн теперь обычные поля — туда можно писать вручную.
+        </p>
+      </div>
+
+      <form class="glass-card form-card" id="orderForm">
+        <label>
+          Имя / ник
+          <input id="clientName" required placeholder="Например: ViNter" />
+        </label>
+
+        <label>
+          Контакт Telegram / Discord
+          <input id="clientContact" required placeholder="@username или Discord" />
+        </label>
+
+        <label>
+          Что нужно сделать
+          <select id="service">
+            <option>VRChat Avatar</option>
+            <option>VRChat World</option>
+            <option>Unity / UdonSharp</option>
+            <option>Shader / VFX</option>
+            <option>Сайт / CRM</option>
+            <option>Другое</option>
+          </select>
+        </label>
+
+        <label>
+          Цена / бюджет
+          <input id="price" placeholder="Например: 5000₽ или обсудим" />
+        </label>
+
+        <label>
+          Дедлайн
+          <input id="deadline" placeholder="Например: до 25 мая" />
+        </label>
+
+        <label>
+          Источник клиента
+          <select id="source">
+            <option>Discord</option>
+            <option>Telegram</option>
+            <option>VRChat</option>
+            <option>Друзья</option>
+            <option>Сайт</option>
+            <option>Другое</option>
+          </select>
+        </label>
+
+        <label>
+          Описание заказа
+          <textarea id="description" rows="5" placeholder="Опиши подробно, что нужно сделать"></textarea>
+        </label>
+
+        <button class="primary-btn" type="submit">Отправить заказ</button>
+        <div class="result" id="orderResult"></div>
+      </form>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <div class="badge">TEAM</div>
+        <h2>Работа в RPC</h2>
+      </div>
+
+      <div class="worker-banner glass-card">
+        <div>
+          <h3>Хочешь стать работником RPC?</h3>
+          <p>Заполни анкету, owner проверит заявку и выдаст доступ в рабочую программу.</p>
+        </div>
+        <a class="primary-btn small" href="./worker-register.html">Подать заявку</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>RPC • RedPad Creator</span>
+    <span>Order Website + Worker System</span>
+  </footer>
+
+  <script src="./app.js"></script>
+</body>
+</html>

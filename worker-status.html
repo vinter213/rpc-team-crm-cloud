@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>RPC • Статус заявки</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div class="bg-orb orb-a"></div>
+  <div class="bg-orb orb-b"></div>
+  <div class="noise"></div>
+
+  <header class="topbar">
+    <a class="brand" href="./index.html">
+      <div class="avatar-logo"><span>RPC</span></div>
+      <div><b>RedPad Creator</b><small>Worker Status</small></div>
+    </a>
+    <nav class="nav">
+      <a href="./index.html">Главная</a>
+      <a href="./worker-register.html">Стать работником</a>
+      <a class="active" href="./worker-status.html">Статус заявки</a>
+    </nav>
+  </header>
+
+  <main class="center-shell">
+    <section class="glass-card status-card">
+      <div class="badge">CHECK STATUS</div>
+      <h1>Проверить заявку</h1>
+      <p class="muted">Введи ID заявки или имя, которое указывал при регистрации.</p>
+
+      <label>ID / имя
+        <input id="workerIdInput" placeholder="Например: ViNter или 7f2a9c1b" />
+      </label>
+
+      <button class="primary-btn" id="checkWorkerBtn">Проверить</button>
+      <div class="result" id="statusResult">Статус появится здесь.</div>
+    </section>
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>

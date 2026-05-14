@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>RPC • Регистрация работника</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div class="bg-orb orb-a"></div>
+  <div class="bg-orb orb-b"></div>
+  <div class="noise"></div>
+
+  <header class="topbar">
+    <a class="brand" href="./index.html">
+      <div class="avatar-logo"><span>RPC</span></div>
+      <div><b>RedPad Creator</b><small>Worker Registration</small></div>
+    </a>
+    <nav class="nav">
+      <a href="./index.html">Главная</a>
+      <a class="active" href="./worker-register.html">Стать работником</a>
+      <a href="./worker-status.html">Статус заявки</a>
+    </nav>
+  </header>
+
+  <main class="section split">
+    <div>
+      <div class="badge">WORKER ACCESS</div>
+      <h1>Регистрация работника RPC</h1>
+      <p class="muted big">
+        Заполни анкету. После отправки заявка появится у owner. Работать можно будет только после подтверждения.
+      </p>
+
+      <div class="steps">
+        <div><b>1</b><span>Заполняешь анкету</span></div>
+        <div><b>2</b><span>Owner одобряет</span></div>
+        <div><b>3</b><span>Получаешь доступ</span></div>
+      </div>
+    </div>
+
+    <form class="glass-card form-card" id="workerForm">
+      <h2>Анкета</h2>
+
+      <label>Имя / ник
+        <input id="wName" required placeholder="Например: ViNter" />
+      </label>
+
+      <label>Телефон
+        <input id="wPhone" placeholder="+7..." />
+      </label>
+
+      <label>Telegram
+        <input id="wTelegram" placeholder="@username" />
+      </label>
+
+      <label>Discord
+        <input id="wDiscord" placeholder="username" />
+      </label>
+
+      <label>Специализация
+        <select id="wSpecialty">
+          <option>VRChat Avatar</option>
+          <option>VRChat World</option>
+          <option>Unity / UdonSharp</option>
+          <option>Blender</option>
+          <option>Shader / VFX</option>
+          <option>Сайт / CRM</option>
+          <option>Другое</option>
+        </select>
+      </label>
+
+      <label>Портфолио / опыт
+        <textarea id="wPortfolio" rows="4" placeholder="Ссылки, примеры, что умеешь"></textarea>
+      </label>
+
+      <label>Комментарий
+        <textarea id="wComment" rows="3" placeholder="Почему хочешь в RPC?"></textarea>
+      </label>
+
+      <button class="primary-btn" type="submit">Отправить заявку владельцу</button>
+      <div class="result" id="workerResult"></div>
+    </form>
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>

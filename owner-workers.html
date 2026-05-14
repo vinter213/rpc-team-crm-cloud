@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>RPC • Owner Workers</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body class="admin-body">
+  <div class="bg-orb orb-a"></div>
+  <div class="bg-orb orb-b"></div>
+  <div class="noise"></div>
+
+  <aside class="admin-side">
+    <a class="brand" href="./index.html">
+      <div class="avatar-logo"><span>RPC</span></div>
+      <div><b>Owner Panel</b><small>Worker Control</small></div>
+    </a>
+
+    <a class="side-link active" href="./owner-workers.html">Рабочие</a>
+    <a class="side-link" href="./index.html">Основной сайт</a>
+    <a class="side-link" href="./worker-register.html">Регистрация</a>
+    <a class="side-link" href="./worker-status.html">Статус</a>
+
+    <div class="side-note">
+      <b>OWNER MODE</b>
+      <span>Одобрение рабочих, роли и отключение доступа.</span>
+    </div>
+  </aside>
+
+  <main class="admin-main">
+    <section class="admin-head">
+      <div>
+        <div class="badge">RPC WORKERS</div>
+        <h1>Рабочие и заявки</h1>
+        <p>Здесь ты подтверждаешь, кто станет работником RPC.</p>
+      </div>
+      <button class="primary-btn small" id="refreshWorkersBtn">Обновить</button>
+    </section>
+
+    <section class="admin-grid">
+      <div class="glass-card stat"><span>Всего</span><b id="statTotal">—</b></div>
+      <div class="glass-card stat"><span>Ждут</span><b id="statPending">—</b></div>
+      <div class="glass-card stat"><span>Одобрены</span><b id="statApproved">—</b></div>
+    </section>
+
+    <section class="glass-card table-card">
+      <div class="table-head">
+        <h2>Список рабочих</h2>
+        <input id="ownerKeyInput" placeholder="Owner Key, если включишь защиту" />
+      </div>
+      <div id="workersList" class="workers-list">
+        Нажми “Обновить”.
+      </div>
+    </section>
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>
