@@ -676,3 +676,152 @@ def update_order_status(order_id: int, data: OrderStatusIn, user: User = Depends
     db.commit()
     db.refresh(order)
     return order_dict(order)
+
+from typing import Optional
+from pydantic import BaseModel
+
+class RPCPublicOrderRequest(BaseModel):
+    client_name: Optional[str] = ""
+    name: Optional[str] = ""
+    contact: Optional[str] = ""
+    service: Optional[str] = ""
+    price: Optional[str] = ""
+    budget: Optional[str] = ""
+    deadline: Optional[str] = ""
+    source: Optional[str] = "Сайт"
+    description: Optional[str] = ""
+    notes: Optional[str] = ""
+    status: Optional[str] = "new"
+
+def rpc_public_order_payload(data: RPCPublicOrderRequest):
+    client_name = (data.client_name or data.name or "Клиент с сайта").strip()
+    price = (data.price or data.budget or "").strip()
+    description = (data.description or data.notes or "").strip()
+    return {
+        "client_name": client_name,
+        "client": client_name,
+        "contact": data.contact or "",
+        "service": data.service or "Не указано",
+        "price": price,
+        "budget": price,
+        "deadline": data.deadline or "",
+        "source": data.source or "Сайт",
+        "description": description,
+        "notes": description,
+        "status": data.status or "new",
+    }
+
+def rpc_public_order_send_telegram(order: dict):
+    try:
+        import os
+        import requests
+        token = os.getenv("TELEGRAM_BOT_TOKEN", "")
+        chat_id = os.getenv("TELEGRAM_CHAT_ID", "")
+        if not token or not chat_id:
+            print("[RPC PUBLIC ORDER] Telegram token/chat_id missing")
+            return
+        text = (
+            "🆕 <b>Новая заявка с сайта RPC</b>\n\n"
+            f"👤 Клиент: <b>{order.get('client_name', '')}</b>\n"
+            f"📞 Контакт: <code>{order.get('contact', '')}</code>\n"
+            f"🛠 Услуга: <b>{order.get('service', '')}</b>\n"
+            f"💰 Бюджет: <b>{order.get('price') or order.get('budget') or '-'}</b>\n"
+            f"⏳ Срок: <b>{order.get('deadline') or '-'}</b>\n"
+            f"📌 Источник: <b>{order.get('source') or 'Сайт'}</b>\n\n"
+            f"📝 {order.get('description') or order.get('notes') or '-'}"
+        )
+        requests.post(
+            f"https://api.telegram.org/bot{token}/sendMessage",
+            json={"chat_id": chat_id, "text": text, "parse_mode": "HTML"},
+            timeout=10,
+        )
+    except Exception as e:
+        print("[RPC PUBLIC ORDER] Telegram error:", e)
+
+def rpc_public_order_save_memory(order: dict):
+    import time
+    order_id = int(time.time())
+    order["id"] = order_id
+    global ORDERS
+    try:
+        ORDERS
+    except NameError:
+        ORDERS = []
+    if isinstance(ORDERS, list):
+        ORDERS.append(order)
+    elif isinstance(ORDERS, dict):
+        ORDERS[str(order_id)] = order
+    return order
+
+def rpc_public_order_save_database(order: dict):
+    try:
+        db_gen = get_db()
+        db = next(db_gen)
+        try:
+            OrderModel = None
+            for model_name in ["Order", "OrderModel", "CRMOrder"]:
+                if model_name in globals():
+                    OrderModel = globals()[model_name]
+                    break
+            if OrderModel is None:
+                return None
+
+            allowed = {}
+            for key, value in order.items():
+                if hasattr(OrderModel, key):
+                    allowed[key] = value
+
+            if not allowed:
+                allowed = {
+                    "client_name": order["client_name"],
+                    "contact": order["contact"],
+                    "service": order["service"],
+                    "price": order["price"],
+                    "deadline": order["deadline"],
+                    "description": order["description"],
+                    "status": order["status"],
+                }
+
+            obj = OrderModel(**allowed)
+            db.add(obj)
+            db.commit()
+            db.refresh(obj)
+
+            try:
+                order["id"] = obj.id
+            except Exception:
+                pass
+
+            return order
+        finally:
+            try:
+                db.close()
+            except Exception:
+                pass
+    except Exception as e:
+        print("[RPC PUBLIC ORDER] Database save skipped:", e)
+        return None
+
+async def rpc_public_order_create(data: RPCPublicOrderRequest):
+    order = rpc_public_order_payload(data)
+    saved = rpc_public_order_save_database(order)
+    if saved is None:
+        saved = rpc_public_order_save_memory(order)
+    rpc_public_order_send_telegram(order)
+    return {"ok": True, "message": "Order received", "order": saved}
+
+@app.post("/public/order")
+async def rpc_public_order(data: RPCPublicOrderRequest):
+    return await rpc_public_order_create(data)
+
+@app.post("/public/orders")
+async def rpc_public_orders(data: RPCPublicOrderRequest):
+    return await rpc_public_order_create(data)
+
+@app.get("/public/order/test")
+async def rpc_public_order_test():
+    return {"ok": True, "endpoint": "/public/order", "message": "RPC public order endpoint works"}
+
+# ============================================================
+# END RPC PUBLIC ORDER ENDPOINT FIX
+# ============================================================
